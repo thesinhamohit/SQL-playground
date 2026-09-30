@@ -94,7 +94,12 @@ order by def_date,  borrower_identifier, loan_identifier
 
 
 
-select distinct account_status
+select *
 from credit_risk_playground.stg_mrt_neo_esma_to_ecb_raw
 WHERE pool_cut_off_date = '2026-07-31'
+AND LEFT(loan_identifier, 7) = '2250773'
 
+
+select * from credit_risk_playground.stg_mrt_ifrs9_ecl_regReporting_V3
+where LEFT(Instrument_Id, 7) ='2250773'
+and calc_date IN ('2026-07-31')
