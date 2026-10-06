@@ -94,12 +94,32 @@ order by def_date,  borrower_identifier, loan_identifier
 
 
 
-select *
+select pool_cut_off_date, borrower_identifier, loan_identifier, original_balance, current_balance, valuation_amount, current_valuation_amount  
 from credit_risk_playground.stg_mrt_neo_esma_to_ecb_raw
-WHERE pool_cut_off_date = '2026-07-31'
-AND LEFT(loan_identifier, 7) = '2250773'
+WHERE 1=1
+--and pool_cut_off_date = '2026-07-31'
+AND LEFT(loan_identifier, 7) = '2239212'
+and borrower_identifier ='5595972'
+order by pool_cut_off_date DESC
 
 
 select * from credit_risk_playground.stg_mrt_ifrs9_ecl_regReporting_V3
-where LEFT(Instrument_Id, 7) ='2250773'
+where LEFT(Instrument_Id, 7) ='2239212'
+ORDER BY calc_date DESC
 and calc_date IN ('2026-07-31')
+
+
+select pool_cut_off_date, borrower_identifier, loan_identifier, arrears_balance, account_status, original_balance, current_balance, valuation_amount, current_valuation_amount  
+from credit_risk_playground.stg_mrt_neo_esma_to_ecb_raw
+WHERE 1=1
+--and pool_cut_off_date = '2026-07-31'
+AND LEFT(loan_identifier, 7) = '2239212'
+order by pool_cut_off_date desc
+
+select * from credit_risk_playground.stg_mrt_neo_esme_raw
+WHERE 1=1
+--and pool_cut_off_date = '2026-07-31'
+AND LEFT(loan_identifier, 7) = '2259109'
+order by pool_cut_off_date desc
+
+

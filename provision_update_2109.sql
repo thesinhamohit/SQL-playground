@@ -917,3 +917,9 @@ where reportdate = '2026-08-31'
 and instrument_id = '2185742101'
 
 
+
+select *
+from credit_risk_playground.stg_mrt_ifrs9_ecl_regReporting_V3
+where reportdate = '2026-09-30'
+
+
