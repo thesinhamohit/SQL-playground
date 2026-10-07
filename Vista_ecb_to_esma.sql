@@ -429,7 +429,7 @@ and etl_source_file = '202607_ESMA RREL_N26_U.csv'
 
 
 SELECT * FROM credit_risk_playground.stg_mrt_rabobank_raw_temp
-WHERE pool_cut_off_date = '2026-07-31'
+WHERE pool_cut_off_date = '2026-08-31'
 
 SELECT 
     -- IDENTIFIERS

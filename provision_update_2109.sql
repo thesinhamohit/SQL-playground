@@ -923,3 +923,12 @@ from credit_risk_playground.stg_mrt_ifrs9_ecl_regReporting_V3
 where reportdate = '2026-09-30'
 
 
+
+SELECT * FROM credit_risk_playground.mrt_insurance_flag
+LIMIT 100;
+
+
+
+
+
+

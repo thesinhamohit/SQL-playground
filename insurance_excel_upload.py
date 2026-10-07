@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # ---------------------------------------------------------
 # 1. Extract and Clean Data from Excel
 # ---------------------------------------------------------
-excel_file = "/Users/mohitsinha/Downloads/Copy of Building insurance samples.xlsx"
+excel_file = "/Users/mohitsinha/Downloads/Copy of Building insurance samples (1).xlsx"
 xls = pd.ExcelFile(excel_file)
 master_list = []
 
