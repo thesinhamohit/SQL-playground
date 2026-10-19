@@ -1,7 +1,7 @@
 
 -- Mortgage Loan Tape
 
---drop table if exists credit_risk_playground.stg_mrt_Mortgage_loan_tape_2026_08_31;
+drop table if exists credit_risk_playground.stg_mrt_Mortgage_loan_tape_2026_08_31;
 create table credit_risk_playground.stg_mrt_Mortgage_loan_tape_2026_08_31 as 
 with temp_tbl as (
 select 

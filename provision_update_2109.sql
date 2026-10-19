@@ -932,3 +932,160 @@ LIMIT 100;
 
 
 
+
+
+
+
+
+
+--- > New loans
+
+
+WITH max_etl_app AS (
+    -- Step 1a: Determine max ETL timestamp for applications
+    SELECT MAX(etl_updated) AS max_etl
+    FROM mo_mortgage_application_and_offer_application
+),
+
+max_etl_lp AS (
+    -- Step 1b: Determine max ETL timestamp for loan parts
+    SELECT MAX(etl_updated) AS max_etl
+    FROM mo_loan_application_in_process_loan_part
+),
+
+target_applications AS (
+    -- Step 2: Extract latest application details filtered by date
+    SELECT 
+        loannumber_clean,
+        application_date,
+        applicationindexnumber,
+        application_type
+    FROM (
+        SELECT 
+            TRIM(a.loannumber::varchar) AS loannumber_clean,
+            TRY_CAST(a.applicationdate AS DATE) AS application_date,
+            a.applicationindexnumber,
+            COALESCE(NULLIF(TRIM(a.oldofkaapplicationtype::varchar), ''), 'Unknown') AS application_type,
+            ROW_NUMBER() OVER (
+                PARTITION BY a.loannumber, a.applicationindexnumber 
+                ORDER BY a.etl_updated DESC
+            ) AS rn
+        FROM mo_mortgage_application_and_offer_application a
+        CROSS JOIN max_etl_app m
+        WHERE a.etl_updated = m.max_etl
+          AND TRY_CAST(a.applicationdate AS DATE) >= DATE '2026-07-01'
+    )
+    WHERE rn = 1
+),
+
+aggregated_loan_parts AS (
+    -- Step 3: Aggregate loan parts by loannumber and index
+    SELECT 
+        TRIM(lp.loannumber::varchar) AS loannumber_clean,
+        lp.applicationindexnumber,
+        SUM(
+            COALESCE(
+                TRY_CAST(
+                    REGEXP_REPLACE(REPLACE(lp.creditamount::varchar, ',', '.'), '[^0-9\.]', '') 
+                    AS NUMERIC(18, 2)
+                ), 
+                0
+            )
+        ) AS total_creditamount
+    FROM mo_loan_application_in_process_loan_part lp
+    CROSS JOIN max_etl_lp m
+    WHERE lp.etl_updated = m.max_etl
+      AND LOWER(TRIM(COALESCE(lp.origin::varchar, ''))) != 'existing'
+      AND TRY_CAST(lp.startdateloanpart AS DATE) >= DATE '2026-07-01' 
+    GROUP BY 1, 2
+),
+
+existing_output as (
+SELECT 
+    app.loannumber_clean             AS nr_lnng,
+    app.application_date             AS application_date,
+    app.applicationindexnumber       AS application_index_number,
+    app.application_type,
+    COALESCE(lp.total_creditamount, 0) AS total_credit_amount
+FROM target_applications app
+INNER JOIN aggregated_loan_parts lp 
+    ON app.loannumber_clean = lp.loannumber_clean
+   AND app.applicationindexnumber = lp.applicationindexnumber
+ORDER BY application_date ASC, total_credit_amount DESC, nr_lnng ASC),
+
+status as (
+        select 
+           a.loannumber,
+           a.applicationindexnumber,
+           a.internal as current_status, 
+           to_date(a.changedate, 'YYYY-MM-DD') as status_last_updated
+        from mo_mortgage_application_and_offer_status as a
+        inner join 
+         (
+            select
+                loannumber,
+                applicationindexnumber,
+                etl_updated,
+                max(number) as updates_same_date,
+                max(changedate) as current_status_date
+        from mo_mortgage_application_and_offer_status
+        where etl_updated = (select max(etl_updated) from mo_mortgage_application_and_offer_status)
+        group by 1,2,3
+        order by loannumber
+      ) b
+      on a.loannumber = b.loannumber
+      and a.changedate = b.current_status_date
+      and a.number = b.updates_same_date
+      where  a.etl_updated = (select max(etl_updated) from mo_mortgage_application_and_offer_status)
+      order by loannumber
+    ),
+
+
+augment_data as (
+
+   select
+		borrower_identifier,
+		loan_identifier_number,
+		loan_identifier,
+		original_balance as original_balance ,
+		current_balance as current_balance,
+		loan_origination_date,
+		date_of_loan_maturity
+    from credit_risk_playground.stg_mrt_neo_esme_raw
+	where pool_cut_off_date = (select max(pool_cut_off_date) from credit_risk_playground.stg_mrt_neo_esme_raw)
+	---and loan_origination_date BETWEEN  '2026-0701' and '2026-09-15'
+),
+
+total_bal as (
+
+select 
+		borrower_identifier,
+		sum(current_balance) as total_current_balance
+from augment_data
+group by borrower_identifier
+)
+
+select * from existing_output  as d1
+left join status as d2
+on d1.nr_lnng = d2.loannumber
+and d1.application_index_number  = d2.applicationindexnumber
+left join augment_data as d3
+on d2.loannumber = d3.loan_identifier_number 
+and d2.applicationindexnumber = substring(d3.loan_identifier, 10,10)
+left join total_bal as d4
+on d3.borrower_identifier = d4.borrower_identifier
+where application_date BETWEEN '2026-07-01'::date and '2026-09-23'::date
+order by  application_date ASC, total_credit_amount DESC, nr_lnng ASC
+
+
+
+SELECT pool_cut_off_date, pool_identifier, sum(current_balance) as total_bal, sum((current_balance*1)-(deposit_amount*1)) as ead
+from 
+    credit_risk_playground.stg_mrt_neo_esme_raw
+   group by 1,2
+    
+    order by pool_cut_off_date desc
+  
+
+
+
